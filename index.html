@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 水果消消乐 - 特效连招竞技版</title>
+    <title>3D 水果消消乐 - 4位数字联机版</title>
     <style>
         :root {
             --bg-color: #f7ede2; 
@@ -280,20 +280,20 @@
         <div id="online-panel">
             <button class="btn blue" onclick="initOnline('host')">🏠 创建房间 (我是房主)</button>
             <div style="margin: 10px 0; font-size: 12px; color: #8c6a5c;">— 或者 —</div>
+            <!-- 🌟 限制只能输入4位纯数字，优化移动端键盘弹出体验 -->
             <div style="display: flex; gap: 8px;">
-                <input type="text" id="join-id-input" placeholder="输入对家房间 ID" style="flex: 1;">
+                <input type="text" id="join-id-input" placeholder="输入4位数字房间ID" maxlength="4" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" style="flex: 1; text-align: center; font-size: 16px; letter-spacing: 2px;">
                 <button class="btn blue" style="width: auto; margin:0;" onclick="initOnline('join')">加入</button>
             </div>
             <p id="online-status" style="font-size: 12px; color: #ff7043; margin-top: 10px; line-height: 1.4;"></p>
             
-            <!-- 🌟 【修复位置】联机开战按钮已正确移入菜单联机面板，确保在点击创建房间后可见 -->
             <button class="btn blue" id="sync-start-btn" style="display:none; margin-top: 12px;" onclick="hostStartOnlineGame()">⚔️ 联机开战 ⚔️</button>
         </div>
     </div>
 
     <!-- 2. 游戏战场界面 -->
     <div id="game-layout">
-        <!-- P1 区域 (左侧) -->
+        <!-- P1 区域 -->
         <div class="player-section clay-card" id="p1-section">
             <h3 id="p1-title" style="margin: 0 0 10px 0; color: #ff5252;">玩家 1 (红方)</h3>
             <div class="player-hud">
@@ -309,7 +309,7 @@
             <button class="btn" onclick="backToMenu()">返回菜单</button>
         </div>
 
-        <!-- P2 区域 (右侧) -->
+        <!-- P2 区域 -->
         <div class="player-section clay-card" id="p2-section">
             <h3 id="p2-title" style="margin: 0 0 10px 0; color: #40c4ff;">玩家 2 (蓝方)</h3>
             <div class="player-hud">
@@ -447,24 +447,25 @@
             }
 
             if (role === 'host') {
-                const randomId = 'FRUIT-' + Math.floor(1000 + Math.random() * 9000);
+                // 🌟 【重构】生成 4 位纯数字房间 ID（1000 - 9999）
+                const randomId = String(Math.floor(1000 + Math.random() * 9000));
                 peer = new Peer(randomId, peerConfig);
 
                 peer.on('open', (id) => {
                     myPeerId = id;
-                    statusEl.innerHTML = `房间创建成功！<br>请把此 ID 告知朋友：<b style="font-size:18px;color:#d84315;letter-spacing:1px;">${id}</b><br><span style='color:#4caf50;'>正在等待对手加入...</span>`;
+                    statusEl.innerHTML = `房间创建成功！<br>请把此数字 ID 告知朋友：<b style="font-size:24px;color:#d84315;letter-spacing:2px;">${id}</b><br><span style='color:#4caf50;'>正在等待对手加入...</span>`;
                 });
 
                 peer.on('connection', (connection) => {
                     conn = connection;
                     statusEl.innerHTML = "<b style='color:#2e7d32;'>对手已成功进入房间！</b><br>点击下方【联机开战】即可同步开局！";
-                    document.getElementById('sync-start-btn').style.display = 'block'; // 🌟 激活按钮显示
+                    document.getElementById('sync-start-btn').style.display = 'block'; 
                     setupDataChannel();
                 });
             } else {
-                const targetId = document.getElementById('join-id-input').value.trim().toUpperCase();
-                if (!targetId) {
-                    statusEl.textContent = "⚠️ 请先输入房主的房间 ID！";
+                const targetId = document.getElementById('join-id-input').value.trim();
+                if (!targetId || targetId.length !== 4) {
+                    statusEl.textContent = "⚠️ 请先输入正确的 4 位数字房间 ID！";
                     return;
                 }
 
@@ -487,7 +488,9 @@
 
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
-                    statusEl.innerHTML = "⚠️ 房间 ID 被占用，请重新创建房间。";
+                    // 🌟 如果 4 位 ID 刚好在公网上被其他人占用，自动重新创建
+                    statusEl.innerHTML = "⚠️ 房间 ID 冲突，正在重新生成中...";
+                    setTimeout(() => initOnline('host'), 1000);
                 } else if (err.type === 'peer-unavailable') {
                     statusEl.innerHTML = "❌ 找不到对应的房间！请确认房主的 ID 拼写无误，且房主处于等待状态。";
                 } else {
@@ -1250,7 +1253,7 @@
             document.getElementById('game-layout').style.display = 'none';
             document.getElementById('result-modal').style.display = 'none';
             document.getElementById('menu-container').style.display = 'flex';
-            document.getElementById('sync-start-btn').style.display = 'none'; // 返回菜单重置按钮
+            document.getElementById('sync-start-btn').style.display = 'none'; 
         }
 
         function delay(ms) {
