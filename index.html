@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 水果消消乐 - 联机超强穿透版</title>
+    <title>3D 水果消消乐 - 联机无缝直连版</title>
     <style>
         :root {
             --bg-color: #f7ede2; 
@@ -287,7 +287,7 @@
             </div>
             <p id="online-status" style="font-size: 12px; color: #ff7043; margin-top: 10px; line-height: 1.4;"></p>
             
-            <!-- 联机开战按钮已正确移入菜单联机面板 -->
+            <!-- 联机开战按钮 -->
             <button class="btn blue" id="sync-start-btn" style="display:none; margin-top: 12px;" onclick="hostStartOnlineGame()">⚔️ 联机开战 ⚔️</button>
         </div>
     </div>
@@ -342,9 +342,9 @@
         let myPeerId = '';
         let onlineRole = ''; 
 
-        // 🌟 核心升级 1：国内高可用阿里、腾讯双路穿透服务器
+        // 🌟 核心升级 1：移除硬编码 0.peerjs.com，交由官方全球 Director 智能调度分配同一节点
         const peerConfig = {
-            host: '0.peerjs.com', port: 443, secure: true,
+            debug: 3,
             config: {
                 iceServers: [
                     { urls: 'stun:stun.aliyun.com:19302' },
@@ -439,7 +439,7 @@
             }
         }
 
-        // 🌟 核心升级 2：智能 ID 空间隔离 (Namespace) 算法，杜绝全球 4 位 ID 碰撞
+        // 🌟 核心升级 2：使用 M3_ 极简 Namespace 前缀，保障 4 位 ID 在官方 Director 网络中完美同步
         function initOnline(role) {
             onlineRole = role;
             const statusEl = document.getElementById('online-status');
@@ -451,13 +451,12 @@
 
             if (role === 'host') {
                 const randomNum = String(Math.floor(1000 + Math.random() * 9000));
-                // 界面展示 4 位数，后台注册时自动拼装专属前缀，确保 ID 唯一性
-                const realId = 'XXL_VERSUS_STUN_' + randomNum; 
+                const realId = 'M3_' + randomNum; 
                 
                 peer = new Peer(realId, peerConfig);
 
                 peer.on('open', (id) => {
-                    myPeerId = randomNum; // 界面只显示 4 位数
+                    myPeerId = randomNum; 
                     statusEl.innerHTML = `房间创建成功！<br>请把此数字 ID 告知朋友：<b style="font-size:24px;color:#d84315;letter-spacing:2px;">${randomNum}</b><br><span style='color:#4caf50;'>正在等待对手加入...</span>`;
                 });
 
@@ -479,8 +478,7 @@
                 peer.on('open', (myId) => {
                     statusEl.innerHTML = `本地网络就绪，正在穿透防火墙呼叫房主: <b>${targetId}</b>...`;
                     
-                    // 访客呼叫时，同样拼装后台专属前缀完成精准定位
-                    const realTargetId = 'XXL_VERSUS_STUN_' + targetId;
+                    const realTargetId = 'M3_' + targetId;
                     conn = peer.connect(realTargetId, { reliable: true });
 
                     conn.on('open', () => {
@@ -1145,7 +1143,6 @@
                 player.board[r].map(cell => cell ? cell.val : -1)
             );
 
-            // 智能死锁检测：兼容特殊方块的判定
             function checkMatchAt(r, c, val) {
                 if (val === -1) return false;
                 if (c >= 2 && tempBoard[r][c-1] === val && tempBoard[r][c-2] === val) return true;
