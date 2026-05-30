@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 水果消消乐 - 4位数字联机版</title>
+    <title>3D 水果消消乐 - 联机超强穿透版</title>
     <style>
         :root {
             --bg-color: #f7ede2; 
@@ -242,6 +242,7 @@
             #timer-container { margin-bottom: 0; width: 50px; height: 50px; font-size: 1.1rem; }
         }
     </style>
+    <!-- 使用稳定版 PeerJS 库 -->
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -280,13 +281,13 @@
         <div id="online-panel">
             <button class="btn blue" onclick="initOnline('host')">🏠 创建房间 (我是房主)</button>
             <div style="margin: 10px 0; font-size: 12px; color: #8c6a5c;">— 或者 —</div>
-            <!-- 🌟 限制只能输入4位纯数字，优化移动端键盘弹出体验 -->
             <div style="display: flex; gap: 8px;">
                 <input type="text" id="join-id-input" placeholder="输入4位数字房间ID" maxlength="4" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" style="flex: 1; text-align: center; font-size: 16px; letter-spacing: 2px;">
                 <button class="btn blue" style="width: auto; margin:0;" onclick="initOnline('join')">加入</button>
             </div>
             <p id="online-status" style="font-size: 12px; color: #ff7043; margin-top: 10px; line-height: 1.4;"></p>
             
+            <!-- 联机开战按钮已正确移入菜单联机面板 -->
             <button class="btn blue" id="sync-start-btn" style="display:none; margin-top: 12px;" onclick="hostStartOnlineGame()">⚔️ 联机开战 ⚔️</button>
         </div>
     </div>
@@ -341,13 +342,14 @@
         let myPeerId = '';
         let onlineRole = ''; 
 
+        // 🌟 核心升级 1：国内高可用阿里、腾讯双路穿透服务器
         const peerConfig = {
             host: '0.peerjs.com', port: 443, secure: true,
             config: {
                 iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun.anyfirewall.com:3478' }
+                    { urls: 'stun:stun.aliyun.com:19302' },
+                    { urls: 'stun:stun.cloud.tencent.com:19302' },
+                    { urls: 'stun:stun.l.google.com:19302' }
                 ]
             }
         };
@@ -437,6 +439,7 @@
             }
         }
 
+        // 🌟 核心升级 2：智能 ID 空间隔离 (Namespace) 算法，杜绝全球 4 位 ID 碰撞
         function initOnline(role) {
             onlineRole = role;
             const statusEl = document.getElementById('online-status');
@@ -447,13 +450,15 @@
             }
 
             if (role === 'host') {
-                // 🌟 【重构】生成 4 位纯数字房间 ID（1000 - 9999）
-                const randomId = String(Math.floor(1000 + Math.random() * 9000));
-                peer = new Peer(randomId, peerConfig);
+                const randomNum = String(Math.floor(1000 + Math.random() * 9000));
+                // 界面展示 4 位数，后台注册时自动拼装专属前缀，确保 ID 唯一性
+                const realId = 'XXL_VERSUS_STUN_' + randomNum; 
+                
+                peer = new Peer(realId, peerConfig);
 
                 peer.on('open', (id) => {
-                    myPeerId = id;
-                    statusEl.innerHTML = `房间创建成功！<br>请把此数字 ID 告知朋友：<b style="font-size:24px;color:#d84315;letter-spacing:2px;">${id}</b><br><span style='color:#4caf50;'>正在等待对手加入...</span>`;
+                    myPeerId = randomNum; // 界面只显示 4 位数
+                    statusEl.innerHTML = `房间创建成功！<br>请把此数字 ID 告知朋友：<b style="font-size:24px;color:#d84315;letter-spacing:2px;">${randomNum}</b><br><span style='color:#4caf50;'>正在等待对手加入...</span>`;
                 });
 
                 peer.on('connection', (connection) => {
@@ -473,7 +478,10 @@
 
                 peer.on('open', (myId) => {
                     statusEl.innerHTML = `本地网络就绪，正在穿透防火墙呼叫房主: <b>${targetId}</b>...`;
-                    conn = peer.connect(targetId, { reliable: true });
+                    
+                    // 访客呼叫时，同样拼装后台专属前缀完成精准定位
+                    const realTargetId = 'XXL_VERSUS_STUN_' + targetId;
+                    conn = peer.connect(realTargetId, { reliable: true });
 
                     conn.on('open', () => {
                         statusEl.innerHTML = "<b style='color:#2e7d32;'>成功进入房间！</b><br>等待房主开启对局喵~";
@@ -488,7 +496,6 @@
 
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
-                    // 🌟 如果 4 位 ID 刚好在公网上被其他人占用，自动重新创建
                     statusEl.innerHTML = "⚠️ 房间 ID 冲突，正在重新生成中...";
                     setTimeout(() => initOnline('host'), 1000);
                 } else if (err.type === 'peer-unavailable') {
@@ -1138,6 +1145,7 @@
                 player.board[r].map(cell => cell ? cell.val : -1)
             );
 
+            // 智能死锁检测：兼容特殊方块的判定
             function checkMatchAt(r, c, val) {
                 if (val === -1) return false;
                 if (c >= 2 && tempBoard[r][c-1] === val && tempBoard[r][c-2] === val) return true;
