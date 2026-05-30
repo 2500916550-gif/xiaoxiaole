@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 水果消消乐 - 独立素材对战版</title>
+    <style>
+        :root {
+            --bg-color: #f7ede2; 
+            --board-p1: #ffdcdb; 
+            --board-p2: #d6ebff; 
+            --tile-size: 52px;
+            --grid-gap: 6px;
+            --clay-brown: #8c6a5c;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; color: #5a453a; user-select: none; overflow-x: hidden;
+        }
+
+        .clay-card {
+            background: white; border-radius: 24px;
+            box-shadow: 0 12px 30px rgba(140, 94, 71, 0.15);
+            border: 4px solid var(--clay-brown);
+        }
+
+        /* 主菜单叠层 */
+        #menu-container {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 30px; width: 90vw; max-width: 500px; text-align: center;
+        }
+
+        /* 联机配置面板 */
+        #online-panel {
+            display: none; width: 100%; margin-top: 15px; padding-top: 15px;
+            border-top: 2px dashed var(--clay-brown);
+        }
+
+        /* 游戏战场布局 */
+        #game-layout {
+            display: none; flex-direction: row; align-items: center;
+            justify-content: center; gap: 20px; width: 98vw; max-width: 1300px;
+        }
+
+        .player-section {
+            display: flex; flex-direction: column; align-items: center; padding: 15px;
+        }
+        #p1-section { border: 4px solid #ff8a80; }
+        #p2-section { border: 4px solid #80d8ff; }
+
+        /* 玩家计分板 */
+        .player-hud {
+            display: flex; justify-content: space-between; width: 100%; margin-bottom: 10px;
+        }
+        .score-badge {
+            font-size: 1.2rem; font-weight: 900; padding: 6px 14px; border-radius: 12px;
+        }
+        #p1-section .score-badge { background: #ff8a80; color: white; }
+        #p2-section .score-badge { background: #80d8ff; color: #004d40; }
+
+        .combo-badge {
+            font-size: 1rem; font-weight: bold; background: #ffd54f;
+            color: #5d4037; padding: 6px 14px; border-radius: 12px;
+            opacity: 0; transform: scale(0.8); transition: all 0.15s;
+        }
+        .combo-badge.active { opacity: 1; transform: scale(1); }
+
+        /* 棋盘 */
+        .board {
+            display: grid; grid-template-columns: repeat(8, var(--tile-size));
+            grid-template-rows: repeat(8, var(--tile-size)); gap: var(--grid-gap);
+            padding: var(--grid-gap); border-radius: 16px;
+        }
+        #p1-board { background-color: var(--board-p1); }
+        #p2-board { background-color: var(--board-p2); }
+
+        /* 卡牌方块 */
+        .tile {
+            width: var(--tile-size); height: var(--tile-size);
+            background: #fff; border-radius: 12px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 0 #d9c1b3, 0 4px 6px rgba(0,0,0,0.05);
+            box-sizing: border-box; position: relative; transition: transform 0.1s;
+        }
+        
+        /* 确保所有独立水果图片大小一致且带有粘土质感阴影 */
+        .tile img {
+            width: 90%; height: 90%; object-fit: contain; pointer-events: none;
+            filter: drop-shadow(0px 3px 4px rgba(140, 94, 71, 0.2));
+        }
+
+        /* 纯代码备用彩色果冻图案 */
+        .tile.fallback-jelly::before {
+            content: ''; width: 70%; height: 70%; border-radius: 50%;
+            box-shadow: inset -3px -3px 6px rgba(0,0,0,0.2);
+        }
+
+        /* 选中 */
+        #p1-board .tile.selected { outline: 4px solid #ff1744; transform: scale(0.92); }
+        #p2-board .tile.selected { outline: 4px solid #00b0ff; transform: scale(0.92); }
+
+        /* 冰冻 ❄️ */
+        .tile.frozen { filter: saturate(0.5) brightness(0.9); cursor: not-allowed; }
+        .tile.frozen::after {
+            content: '❄️'; position: absolute; font-size: 24px;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tile.eliminating { transform: scale(0); opacity: 0; transition: all 0.2s; }
+
+        /* 中央控制台 */
+        #center-console {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; width: 200px; padding: 15px;
+        }
+
+        #timer-container {
+            width: 85px; height: 85px; border-radius: 50%; background: #fbe9e7;
+            border: 5px solid #ff7043; display: flex; align-items: center;
+            justify-content: center; font-size: 1.8rem; font-weight: 900;
+            color: #d84315; margin-bottom: 15px;
+        }
+
+        .setting-group {
+            width: 100%; margin-bottom: 12px; display: flex; flex-direction: column;
+            gap: 4px; font-size: 12px; font-weight: bold; color: #6d4c41; text-align: left;
+        }
+
+        select, input[type="text"] {
+            padding: 8px; border-radius: 10px; border: 2px solid var(--clay-brown);
+            background: white; color: #5d4037; font-weight: bold; outline: none;
+        }
+
+        .btn {
+            width: 100%; padding: 12px; background-color: #ff7043; color: white;
+            border: none; border-radius: 14px; font-size: 1rem; font-weight: bold;
+            cursor: pointer; box-shadow: 0 4px 0 #d84315; transition: all 0.1s; margin-bottom: 8px;
+        }
+        .btn:hover { background-color: #ff5722; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d84315; }
+        .btn.blue { background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; }
+        .btn.blue:hover { background-color: #03a9f4; }
+        .btn.blue:active { box-shadow: 0 1px 0 #0288d1; }
+
+        /* 结算弹窗 */
+        #result-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; border: 5px solid var(--clay-brown); border-radius: 24px;
+            padding: 40px; text-align: center; z-index: 2000; display: none; width: 320px;
+        }
+
+        /* 备用果冻颜色表 */
+        .color-0::before { background-color: #ff5252; }
+        .color-1::before { background-color: #ff4081; }
+        .color-2::before { background-color: #e040fb; }
+        .color-3::before { background-color: #7c4dff; }
+        .color-4::before { background-color: #53d6ff; }
+        .color-5::before { background-color: #00e5ff; }
+        .color-6::before { background-color: #1de9b6; }
+        .color-7::before { background-color: #00e676; }
+        .color-8::before { background-color: #aeea00; }
+        .color-9::before { background-color: #ffd600; }
+        .color-10::before { background-color: #ff9100; }
+        .color-11::before { background-color: #ff3d00; }
+        .color-12::before { background-color: #8d6e63; }
+        .color-13::before { background-color: #cfd8dc; }
+        .color-14::before { background-color: #b0bec5; }
+        .color-15::before { background-color: #78909c; }
+
+        @media (max-width: 1000px) {
+            #game-layout { flex-direction: column; gap: 10px; }
+            :root { --tile-size: 38px; }
+            #center-console { flex-direction: row; width: 90%; gap: 10px; padding: 5px; }
+            #timer-container { margin-bottom: 0; width: 50px; height: 50px; font-size: 1.1rem; }
+        }
+    </style>
+    <!-- 引入 PeerJS，实现免服务器在线 P2P 联机 -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+    <!-- 1. 游戏主菜单 -->
+    <div id="menu-container" class="clay-card">
+        <h2 style="color: #6d4c41; margin: 0;">🍉 3D 粘土水果消消乐 🍓</h2>
+        <p id="path-status" style="color: #e64a19; font-weight: bold; font-size: 13px; margin: 10px 0;">正在识别本地 tex/ 文件夹中的素材...</p>
+
+        <!-- 难度和时间配置 -->
+        <div class="setting-group">
+            <label>难度选择:</label>
+            <select id="difficulty-select">
+                <option value="5">简单 (5 种水果)</option>
+                <option value="8" selected>普通 (8 种水果)</option>
+                <option value="12">困难 (12 种水果)</option>
+                <option value="14">大师 (14 种水果)</option>
+                <option value="16">地狱 (16 种水果)</option>
+            </select>
+        </div>
+
+        <div class="setting-group">
+            <label>时间限制:</label>
+            <select id="time-select">
+                <option value="60">60 秒</option>
+                <option value="90" selected>90 秒</option>
+                <option value="120">120 秒</option>
+                <option value="180">180 秒</option>
+            </select>
+        </div>
+
+        <!-- 模式选择按钮 -->
+        <button class="btn" onclick="selectMode('single')">👤 单人闯关模式</button>
+        <button class="btn" onclick="selectMode('local')">👥 本地同屏对战</button>
+        <button class="btn blue" onclick="selectMode('online')">🌐 远程联机对战</button>
+
+        <!-- 联机面板 -->
+        <div id="online-panel">
+            <button class="btn blue" onclick="initOnline('host')">🏠 创建房间 (我是房主)</button>
+            <div style="margin: 10px 0; font-size: 12px; color: #8c6a5c;">— 或者 —</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="join-id-input" placeholder="输入对家房间 ID" style="flex: 1;">
+                <button class="btn blue" style="width: auto; margin:0;" onclick="initOnline('join')">加入</button>
+            </div>
+            <p id="online-status" style="font-size: 12px; color: #ff7043; margin-top: 10px;"></p>
+        </div>
+    </div>
+
+    <!-- 2. 游戏战场界面 -->
+    <div id="game-layout">
+        <!-- P1 区域 (左侧) -->
+        <div class="player-section clay-card" id="p1-section">
+            <h3 id="p1-title" style="margin: 0 0 10px 0; color: #ff5252;">玩家 1 (红方)</h3>
+            <div class="player-hud">
+                <div class="score-badge">分数: <span id="p1-score">0</span></div>
+                <div class="combo-badge" id="p1-combo-badge">连击 x<span id="p1-combo">0</span></div>
+            </div>
+            <div class="board" id="p1-board"></div>
+        </div>
+
+        <!-- 中央控制台 -->
+        <div id="center-console" class="clay-card">
+            <div id="timer-container"><span id="time-val">90</span></div>
+            <button class="btn" onclick="backToMenu()">返回菜单</button>
+            <button class="btn blue" id="sync-start-btn" style="display:none;" onclick="hostStartOnlineGame()">联机开战</button>
+        </div>
+
+        <!-- P2 区域 (右侧) -->
+        <div class="player-section clay-card" id="p2-section">
+            <h3 id="p2-title" style="margin: 0 0 10px 0; color: #40c4ff;">玩家 2 (蓝方)</h3>
+            <div class="player-hud">
+                <div class="score-badge">分数: <span id="p2-score">0</span></div>
+                <div class="combo-badge" id="p2-combo-badge">连击 x<span id="p2-combo">0</span></div>
+            </div>
+            <div class="board" id="p2-board"></div>
+        </div>
+    </div>
+
+    <!-- 3. 结算弹窗 -->
+    <div id="result-modal">
+        <h2 id="result-title">游戏结束</h2>
+        <p id="result-winner" style="font-size: 20px; color: #ff7043;"></p>
+        <p id="result-detail"></p>
+        <button class="btn" onclick="restartGame()">再战一局</button>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 8;
+        let gameTimer = null;
+        let timeLeft = 90;
+        let activeFruitCount = 8;
+        let isGameRunning = false;
+        let currentMode = 'single'; 
+
+        // 联机网络变量
+        let peer = null;
+        let conn = null;
+        let myPeerId = '';
+        let onlineRole = ''; 
+
+        // --- 智能同级路径自动探测引擎 ---
+        let useFallback = false;
+        
+        function detectTexFolder() {
+            const testImg = new Image();
+            testImg.onload = () => {
+                useFallback = false;
+                document.getElementById('path-status').innerHTML = `✅ 成功识别本地 <b style="color:#2e7d32;">tex/</b> 文件夹下的 16 种 3D 水果素材！`;
+                document.getElementById('path-status').style.color = '#2e7d32';
+            };
+            testImg.onerror = () => {
+                useFallback = true;
+                document.getElementById('path-status').innerHTML = `⚠️ 未检测到 tex/fruits_1.png，已启用备用彩色果冻。`;
+                document.getElementById('path-status').style.color = '#795548';
+            };
+            // 尝试加载第一张水果图片作为连通性测试
+            testImg.src = 'tex/fruits_1.png';
+        }
+
+        // 启动探测
+        detectTexFolder();
+
+        // P1 & P2 独立数据状态
+        const players = {
+            p1: {
+                id: 'p1', board: [], score: 0, combo: 0,
+                selectedTile: null, isAnimating: false,
+                boardEl: null, scoreEl: null, comboEl: null, comboBadgeEl: null
+            },
+            p2: {
+                id: 'p2', board: [], score: 0, combo: 0,
+                selectedTile: null, isAnimating: false,
+                boardEl: null, scoreEl: null, comboEl: null, comboBadgeEl: null
+            }
+        };
+
+        // --- Web Audio API 音效合成 ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type, player = 'p1') {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            const pitchOffset = player === 'p1' ? 1.2 : 0.9;
+
+            if (type === 'select') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(350 * pitchOffset, now);
+                osc.frequency.exponentialRampToValueAtTime(700 * pitchOffset, now + 0.08);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now); osc.stop(now + 0.08);
+            } else if (type === 'pop') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180 * pitchOffset, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.15);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'freeze') { 
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            }
+        }
+
+        // --- 游戏模式与联机配置 ---
+        function selectMode(mode) {
+            currentMode = mode;
+            if (mode === 'online') {
+                document.getElementById('online-panel').style.display = 'block';
+            } else {
+                document.getElementById('online-panel').style.display = 'none';
+                initGameUI();
+            }
+        }
+
+        // 初始化 PeerJS
+        function initOnline(role) {
+            onlineRole = role;
+            const statusEl = document.getElementById('online-status');
+            statusEl.textContent = "正在连接 P2P 服务器...";
+
+            const randomId = 'FRUIT-' + Math.floor(1000 + Math.random() * 9000);
+            
+            if (role === 'host') {
+                peer = new Peer(randomId);
+                peer.on('open', (id) => {
+                    myPeerId = id;
+                    statusEl.innerHTML = `房间创建成功！<br>请把此 ID 告知朋友：<b style="font-size:16px;color:#d84315;">${id}</b><br>等待对方加入...`;
+                });
+
+                peer.on('connection', (connection) => {
+                    conn = connection;
+                    statusEl.textContent = "朋友已加入！可以开始对战了。";
+                    document.getElementById('sync-start-btn').style.display = 'block'; 
+                    setupDataChannel();
+                });
+            } else {
+                peer = new Peer(); 
+                peer.on('open', () => {
+                    const targetId = document.getElementById('join-id-input').value.trim().toUpperCase();
+                    if (!targetId) {
+                        statusEl.textContent = "请输入房主的房间 ID！";
+                        return;
+                    }
+                    statusEl.textContent = `正在连接房间: ${targetId}...`;
+                    conn = peer.connect(targetId);
+
+                    conn.on('open', () => {
+                        statusEl.textContent = "成功连接房间！等待房主开始游戏...";
+                        setupDataChannel();
+                    });
+                });
+            }
+
+            peer.on('error', (err) => {
+                statusEl.textContent = "连接发生错误: " + err.type;
+            });
+        }
+
+        function setupDataChannel() {
+            conn.on('data', (data) => {
+                if (data.type === 'start') {
+                    activeFruitCount = data.difficulty;
+                    timeLeft = data.time;
+                    currentMode = 'online';
+                    initGameUI();
+                    startCountdown();
+                } 
+                else if (data.type === 'sync') {
+                    const opponent = onlineRole === 'host' ? players.p2 : players.p1;
+                    opponent.score = data.score;
+                    opponent.scoreEl.textContent = data.score;
+                    opponent.board = data.board;
+                    renderBoard(opponent);
+                }
+                else if (data.type === 'attack') {
+                    const mySelf = onlineRole === 'host' ? players.p1 : players.p2;
+                    triggerLocalIce(mySelf);
+                }
+            });
+        }
+
+        function hostStartOnlineGame() {
+            activeFruitCount = parseInt(document.getElementById('difficulty-select').value);
+            timeLeft = parseInt(document.getElementById('time-select').value);
+            
+            conn.send({
+                type: 'start',
+                difficulty: activeFruitCount,
+                time: timeLeft
+            });
+
+            initGameUI();
+            startCountdown();
+        }
+
+        // --- 棋盘渲染与流转控制 ---
+        function initGameUI() {
+            document.getElementById('menu-container').style.display = 'none';
+            document.getElementById('game-layout').style.display = 'flex';
+
+            players.p1.boardEl = document.getElementById('p1-board');
+            players.p1.scoreEl = document.getElementById('p1-score');
+            players.p1.comboEl = document.getElementById('p1-combo');
+            players.p1.comboBadgeEl = document.getElementById('p1-combo-badge');
+
+            players.p2.boardEl = document.getElementById('p2-board');
+            players.p2.scoreEl = document.getElementById('p2-score');
+            players.p2.comboEl = document.getElementById('p2-combo');
+            players.p2.comboBadgeEl = document.getElementById('p2-combo-badge');
+
+            if (currentMode === 'single') {
+                document.getElementById('p1-title').textContent = "挑战者";
+                document.getElementById('p2-section').style.display = 'none'; 
+            } else if (currentMode === 'online') {
+                document.getElementById('p2-section').style.display = 'flex';
+                if (onlineRole === 'host') {
+                    document.getElementById('p1-title').textContent = "房主 (你)";
+                    document.getElementById('p2-title').textContent = "对手 (蓝方)";
+                } else {
+                    document.getElementById('p1-title').textContent = "对手 (红方)";
+                    document.getElementById('p2-title').textContent = "你 (蓝方)";
+                }
+            } else {
+                document.getElementById('p1-title').textContent = "玩家 1 (红方)";
+                document.getElementById('p2-title').textContent = "玩家 2 (蓝方)";
+                document.getElementById('p2-section').style.display = 'flex';
+            }
+
+            activeFruitCount = parseInt(document.getElementById('difficulty-select').value);
+            timeLeft = parseInt(document.getElementById('time-select').value);
+            document.getElementById('time-val').textContent = timeLeft;
+
+            isGameRunning = true;
+
+            for (let key in players) {
+                const p = players[key];
+                p.score = 0; p.combo = 0; p.selectedTile = null; p.isAnimating = false;
+                p.scoreEl.textContent = '0';
+                p.comboBadgeEl.classList.remove('active');
+                createBoard(p);
+                renderBoard(p);
+            }
+
+            if (currentMode !== 'online') {
+                clearInterval(gameTimer);
+                startCountdown();
+            }
+        }
+
+        function createBoard(player) {
+            player.board = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                player.board[r] = [];
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    let validIndices = [];
+                    for (let i = 0; i < activeFruitCount; i++) {
+                        if (c >= 2 && player.board[r][c-1]?.val === i && player.board[r][c-2]?.val === i) continue;
+                        if (r >= 2 && player.board[r-1][c]?.val === i && player.board[r-2][c]?.val === i) continue;
+                        validIndices.push(i);
+                    }
+                    const randIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
+                    player.board[r][c] = { val: randIndex, frozen: false };
+                }
+            }
+            if (!hasAvailableMoves(player)) createBoard(player); 
+        }
+
+        function renderBoard(player) {
+            const el = player.boardEl;
+            el.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = player.board[r][c];
+                    const tile = document.createElement('div');
+                    tile.classList.add('tile');
+                    tile.dataset.row = r;
+                    tile.dataset.col = c;
+                    tile.dataset.player = player.id;
+
+                    if (cell) {
+                        if (!useFallback) {
+                            // 直接使用 <img> 渲染 tex/ 文件夹中的独立素材 (水果图片是 1-indexed)
+                            const img = document.createElement('img');
+                            img.src = `tex/fruits_${cell.val + 1}.png`;
+                            tile.appendChild(img);
+                        } else {
+                            tile.classList.add('fallback-jelly', `color-${cell.val}`);
+                        }
+                        if (cell.frozen) tile.classList.add('frozen');
+                    }
+
+                    let canClick = true;
+                    if (currentMode === 'online') {
+                        if (onlineRole === 'host' && player.id !== 'p1') canClick = false;
+                        if (onlineRole === 'guest' && player.id !== 'p2') canClick = false;
+                    }
+
+                    if (canClick) tile.addEventListener('click', handleTileClick);
+                    el.appendChild(tile);
+                }
+            }
+        }
+
+        async function handleTileClick(e) {
+            if (!isGameRunning) return;
+            
+            const clickedTile = e.currentTarget;
+            const player = players[clickedTile.dataset.player];
+            if (player.isAnimating) return;
+
+            const r = parseInt(clickedTile.dataset.row);
+            const c = parseInt(clickedTile.dataset.col);
+
+            if (player.board[r][c]?.frozen) return;
+
+            if (!player.selectedTile) {
+                player.selectedTile = clickedTile;
+                player.selectedTile.classList.add('selected');
+                playSound('select', player.id);
+            } else {
+                const prevR = parseInt(player.selectedTile.dataset.row);
+                const prevC = parseInt(player.selectedTile.dataset.col);
+
+                const isAdjacent = (Math.abs(r - prevR) === 1 && c === prevC) || 
+                                   (Math.abs(c - prevC) === 1 && r === prevR);
+
+                if (isAdjacent) {
+                    player.selectedTile.classList.remove('selected');
+                    player.isAnimating = true;
+
+                    await swapTiles(player, prevR, prevC, r, c);
+
+                    let matches = getMatches(player);
+                    if (matches.length > 0) {
+                        player.combo = 0;
+                        await processElimination(player);
+                    } else {
+                        await swapTiles(player, prevR, prevC, r, c);
+                    }
+                    player.isAnimating = false;
+                    player.selectedTile = null;
+                } else {
+                    player.selectedTile.classList.remove('selected');
+                    player.selectedTile = clickedTile;
+                    player.selectedTile.classList.add('selected');
+                    playSound('select', player.id);
+                }
+            }
+        }
+
+        async function swapTiles(player, r1, c1, r2, c2) {
+            const temp = player.board[r1][c1];
+            player.board[r1][c1] = player.board[r2][c2];
+            player.board[r2][c2] = temp;
+            renderBoard(player);
+            await delay(120);
+        }
+
+        function getMatches(player) {
+            let matched = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(false));
+            let hasMatch = false;
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                let matchRun = 1;
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    let isLast = (c === BOARD_SIZE - 1);
+                    if (!isLast && player.board[r][c]?.val === player.board[r][c+1]?.val && player.board[r][c] !== null) {
+                        matchRun++;
+                    } else {
+                        if (matchRun >= 3) {
+                            for (let i = 0; i < matchRun; i++) { matched[r][c - i] = true; hasMatch = true; }
+                        }
+                        matchRun = 1;
+                    }
+                }
+            }
+
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let matchRun = 1;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    let isLast = (r === BOARD_SIZE - 1);
+                    if (!isLast && player.board[r][c]?.val === player.board[r+1][c]?.val && player.board[r][c] !== null) {
+                        matchRun++;
+                    } else {
+                        if (matchRun >= 3) {
+                            for (let i = 0; i < matchRun; i++) { matched[r - i][c] = true; hasMatch = true; }
+                        }
+                        matchRun = 1;
+                    }
+                }
+            }
+
+            let coords = [];
+            if (hasMatch) {
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (matched[r][c]) coords.push({ r, c });
+                    }
+                }
+            }
+            return coords;
+        }
+
+        async function processElimination(player) {
+            const matches = getMatches(player);
+            if (matches.length === 0) {
+                player.combo = 0;
+                player.comboBadgeEl.classList.remove('active');
+                if (!hasAvailableMoves(player)) shuffleBoard(player);
+                return;
+            }
+
+            player.combo++;
+            if (player.combo > 1) {
+                player.comboEl.textContent = player.combo;
+                player.comboBadgeEl.classList.add('active');
+            }
+
+            if (currentMode !== 'single' && (player.combo >= 2 || matches.length >= 4)) {
+                if (currentMode === 'local') {
+                    const target = player.id === 'p1' ? players.p2 : players.p1;
+                    triggerLocalIce(target);
+                } else if (currentMode === 'online') {
+                    conn.send({ type: 'attack' });
+                }
+            }
+
+            playSound('pop', player.id);
+            matches.forEach(coord => {
+                const el = player.boardEl.querySelector(`[data-row='${coord.r}'][data-col='${coord.c}']`);
+                if (el) el.classList.add('eliminating');
+                thawAdjacent(player, coord.r, coord.c);
+            });
+
+            player.score += matches.length * 10 * player.combo;
+            player.scoreEl.textContent = player.score;
+
+            await delay(200);
+
+            matches.forEach(coord => { player.board[coord.r][coord.c] = null; });
+
+            applyGravity(player);
+            renderBoard(player);
+            await delay(150);
+
+            fillEmptySpaces(player);
+            renderBoard(player);
+            await delay(150);
+
+            if (currentMode === 'online') {
+                conn.send({
+                    type: 'sync',
+                    board: player.board,
+                    score: player.score
+                });
+            }
+
+            await processElimination(player);
+        }
+
+        function applyGravity(player) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let emptyRow = BOARD_SIZE - 1;
+                for (let r = BOARD_SIZE - 1; r >= 0; r--) {
+                    if (player.board[r][c] !== null) {
+                        if (r !== emptyRow) {
+                            player.board[emptyRow][c] = player.board[r][c];
+                            player.board[r][c] = null;
+                        }
+                        emptyRow--;
+                    }
+                }
+            }
+        }
+
+        function fillEmptySpaces(player) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    if (player.board[r][c] === null) {
+                        player.board[r][c] = {
+                            val: Math.floor(Math.random() * activeFruitCount),
+                            frozen: false
+                        };
+                    }
+                }
+            }
+        }
+
+        // --- 4. 冰冻攻击 ---
+        function triggerLocalIce(targetPlayer) {
+            const candidates = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (targetPlayer.board[r][c] && !targetPlayer.board[r][c].frozen) {
+                        candidates.push({ r, c });
+                    }
+                }
+            }
+
+            if (candidates.length > 0) {
+                const target = candidates[Math.floor(Math.random() * candidates.length)];
+                targetPlayer.board[target.r][target.c].frozen = true;
+                playSound('freeze', targetPlayer.id);
+                renderBoard(targetPlayer);
+
+                if (currentMode === 'online') {
+                    conn.send({
+                        type: 'sync',
+                        board: targetPlayer.board,
+                        score: targetPlayer.score
+                    });
+                }
+            }
+        }
+
+        function thawAdjacent(player, r, c) {
+            const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+            dirs.forEach(([dr, dc]) => {
+                const nr = r + dr; const nc = c + dc;
+                if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+                    const neighbor = player.board[nr][nc];
+                    if (neighbor && neighbor.frozen) neighbor.frozen = false;
+                }
+            });
+        }
+
+        // --- 5. 死锁检测 ---
+        function hasAvailableMoves(player) {
+            const tempBoard = Array.from({ length: BOARD_SIZE }, (_, r) => 
+                player.board[r].map(cell => cell ? cell.val : -1)
+            );
+
+            function checkMatchAt(r, c, val) {
+                if (val === -1) return false;
+                if (c >= 2 && tempBoard[r][c-1] === val && tempBoard[r][c-2] === val) return true;
+                if (c < BOARD_SIZE - 2 && tempBoard[r][c+1] === val && tempBoard[r][c+2] === val) return true;
+                if (c >= 1 && c < BOARD_SIZE - 1 && tempBoard[r][c-1] === val && tempBoard[r][c+1] === val) return true;
+                if (r >= 2 && tempBoard[r-1][c] === val && tempBoard[r-2][c] === val) return true;
+                if (r < BOARD_SIZE - 2 && tempBoard[r+1][c] === val && tempBoard[r+2][c] === val) return true;
+                if (r >= 1 && r < BOARD_SIZE - 1 && tempBoard[r-1][c] === val && tempBoard[r+1][c] === val) return true;
+                return false;
+            }
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const val = tempBoard[r][c];
+                    if (c < BOARD_SIZE - 1) {
+                        const rightVal = tempBoard[r][c+1];
+                        tempBoard[r][c] = rightVal; tempBoard[r][c+1] = val;
+                        if (checkMatchAt(r, c, rightVal) || checkMatchAt(r, c+1, val)) return true;
+                        tempBoard[r][c] = val; tempBoard[r][c+1] = rightVal; 
+                    }
+                    if (r < BOARD_SIZE - 1) {
+                        const downVal = tempBoard[r+1][c];
+                        tempBoard[r][c] = downVal; tempBoard[r+1][c] = val;
+                        if (checkMatchAt(r, c, downVal) || checkMatchAt(r+1, c, val)) return true;
+                        tempBoard[r][c] = val; tempBoard[r+1][c] = downVal; 
+                    }
+                }
+            }
+            return false;
+        }
+
+        function shuffleBoard(player) {
+            let flat = player.board.flat();
+            for (let i = flat.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [flat[i], flat[j]] = [flat[j], flat[i]];
+            }
+            let k = 0;
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    player.board[r][c] = flat[k++];
+                }
+            }
+            if (!hasAvailableMoves(player) || getMatches(player).length > 0) {
+                shuffleBoard(player);
+            } else {
+                renderBoard(player);
+            }
+        }
+
+        // --- 6. 计时器与结算 ---
+        function startCountdown() {
+            clearInterval(gameTimer);
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('time-val').textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(gameTimer);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            const p1 = players.p1;
+            const p2 = players.p2;
+
+            let winnerText = "";
+            let detailText = "";
+
+            if (currentMode === 'single') {
+                winnerText = "🎉 挑战完成！";
+                detailText = `你最终获得了: ${p1.score} 分！`;
+                const high = localStorage.getItem('match3_high') || 0;
+                if (p1.score > high) {
+                    localStorage.setItem('match3_high', p1.score);
+                    detailText += `<br><span style="color:#4caf50;">🏆 创造了新的最高纪录！</span>`;
+                } else {
+                    detailText += `<br>历史最高分: ${high} 分`;
+                }
+            } else {
+                detailText = `P1 得分: ${p1.score} | P2 得分: ${p2.score}`;
+                if (p1.score > p2.score) {
+                    winnerText = currentMode === 'online' && onlineRole === 'guest' ? "❌ 你输了喵~" : "👑 玩家 1 (红方) 获胜！";
+                } else if (p2.score > p1.score) {
+                    winnerText = currentMode === 'online' && onlineRole === 'host' ? "❌ 你输了喵~" : "👑 玩家 2 (蓝方) 获胜！";
+                } else {
+                    winnerText = "🤝 双方打平，势均力敌！";
+                }
+            }
+
+            document.getElementById('result-winner').innerHTML = winnerText;
+            document.getElementById('result-detail').innerHTML = detailText;
+            document.getElementById('result-modal').style.display = 'block';
+        }
+
+        function restartGame() {
+            if (currentMode === 'online') {
+                if (onlineRole === 'host') {
+                    hostStartOnlineGame();
+                } else {
+                    document.getElementById('result-modal').style.display = 'none';
+                }
+            } else {
+                initGameUI();
+            }
+        }
+
+        function backToMenu() {
+            clearInterval(gameTimer);
+            isGameRunning = false;
+            document.getElementById('game-layout').style.display = 'none';
+            document.getElementById('result-modal').style.display = 'none';
+            document.getElementById('menu-container').style.display = 'flex';
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
