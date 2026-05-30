@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 水果消消乐 - 独立素材对战版</title>
+    <title>3D 水果消消乐 - 特效连招竞技版</title>
     <style>
         :root {
             --bg-color: #f7ede2; 
@@ -28,19 +28,16 @@
             border: 4px solid var(--clay-brown);
         }
 
-        /* 主菜单叠层 */
         #menu-container {
             display: flex; flex-direction: column; align-items: center;
             padding: 30px; width: 90vw; max-width: 500px; text-align: center;
         }
 
-        /* 联机配置面板 */
         #online-panel {
             display: none; width: 100%; margin-top: 15px; padding-top: 15px;
             border-top: 2px dashed var(--clay-brown);
         }
 
-        /* 游戏战场布局 */
         #game-layout {
             display: none; flex-direction: row; align-items: center;
             justify-content: center; gap: 20px; width: 98vw; max-width: 1300px;
@@ -52,7 +49,6 @@
         #p1-section { border: 4px solid #ff8a80; }
         #p2-section { border: 4px solid #80d8ff; }
 
-        /* 玩家计分板 */
         .player-hud {
             display: flex; justify-content: space-between; width: 100%; margin-bottom: 10px;
         }
@@ -69,41 +65,110 @@
         }
         .combo-badge.active { opacity: 1; transform: scale(1); }
 
-        /* 棋盘 */
         .board {
             display: grid; grid-template-columns: repeat(8, var(--tile-size));
             grid-template-rows: repeat(8, var(--tile-size)); gap: var(--grid-gap);
             padding: var(--grid-gap); border-radius: 16px;
+            position: relative;
         }
         #p1-board { background-color: var(--board-p1); }
         #p2-board { background-color: var(--board-p2); }
 
-        /* 卡牌方块 */
         .tile {
             width: var(--tile-size); height: var(--tile-size);
             background: #fff; border-radius: 12px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 0 #d9c1b3, 0 4px 6px rgba(0,0,0,0.05);
-            box-sizing: border-box; position: relative; transition: transform 0.1s;
+            box-sizing: border-box; position: relative;
+            touch-action: none; 
         }
         
-        /* 确保所有独立水果图片大小一致且带有粘土质感阴影 */
         .tile img {
             width: 90%; height: 90%; object-fit: contain; pointer-events: none;
             filter: drop-shadow(0px 3px 4px rgba(140, 94, 71, 0.2));
+            transition: transform 0.2s;
         }
 
-        /* 纯代码备用彩色果冻图案 */
+        /* 🌟 Q弹出现动画 */
+        @keyframes bounceSpawn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.18); opacity: 0.8; }
+            80% { transform: scale(0.92); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .tile.spawn-bounce {
+            animation: bounceSpawn 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.2) both;
+        }
+
+        /* 🌟 4连：横向清除特殊水果 (粉色横向极光) */
+        .tile.special-row {
+            transform: scale(1.1);
+            box-shadow: 0 0 12px #ff4081, 0 4px 0 #d9c1b3;
+        }
+        .tile.special-row::before {
+            content: ''; position: absolute; width: 120%; height: 6px;
+            background: linear-gradient(90deg, transparent, #ff4081, transparent);
+            top: 50%; left: -10%; transform: translateY(-50%);
+            border-radius: 3px; z-index: 2;
+            animation: pulseLaser 0.8s infinite alternate;
+        }
+
+        /* 🌟 4连：纵向清除特殊水果 (蓝色纵向极光) */
+        .tile.special-col {
+            transform: scale(1.1);
+            box-shadow: 0 0 12px #00e5ff, 0 4px 0 #d9c1b3;
+        }
+        .tile.special-col::before {
+            content: ''; position: absolute; width: 6px; height: 120%;
+            background: linear-gradient(180deg, transparent, #00e5ff, transparent);
+            left: 50%; top: -10%; transform: translateX(-50%);
+            border-radius: 3px; z-index: 2;
+            animation: pulseLaser 0.8s infinite alternate;
+        }
+
+        @keyframes pulseLaser {
+            0% { opacity: 0.5; transform: scaleY(0.8) translate(-50%, -50%); }
+            100% { opacity: 1; transform: scaleY(1.2) translate(-50%, -50%); }
+        }
+
+        /* 🌟 5连：超级发光能量炸弹 (七彩霓虹旋转光圈) */
+        .tile.special-bomb {
+            transform: scale(1.2);
+            z-index: 5;
+            animation: bombPulse 1.2s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 18px #ffd600, 0 4px 0 #d9c1b3;
+        }
+        .tile.special-bomb::after {
+            content: ''; position: absolute; width: 110%; height: 110%;
+            border: 3px dashed #ffd600; border-radius: 50%;
+            animation: spinRainbow 4s linear infinite;
+        }
+
+        @keyframes bombPulse {
+            0% { transform: scale(1.15); }
+            100% { transform: scale(1.25); }
+        }
+        @keyframes spinRainbow {
+            0% { transform: rotate(0deg); filter: hue-rotate(0deg); }
+            100% { transform: rotate(360deg); filter: hue-rotate(360deg); }
+        }
+
+        /* 🌟 炸弹喷溅果汁粒子 */
+        .juice-particle {
+            position: absolute; width: 14px; height: 14px;
+            border-radius: 50%; z-index: 100; pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
         .tile.fallback-jelly::before {
             content: ''; width: 70%; height: 70%; border-radius: 50%;
             box-shadow: inset -3px -3px 6px rgba(0,0,0,0.2);
         }
 
-        /* 选中 */
         #p1-board .tile.selected { outline: 4px solid #ff1744; transform: scale(0.92); }
         #p2-board .tile.selected { outline: 4px solid #00b0ff; transform: scale(0.92); }
 
-        /* 冰冻 ❄️ */
         .tile.frozen { filter: saturate(0.5) brightness(0.9); cursor: not-allowed; }
         .tile.frozen::after {
             content: '❄️'; position: absolute; font-size: 24px;
@@ -113,7 +178,6 @@
 
         .tile.eliminating { transform: scale(0); opacity: 0; transition: all 0.2s; }
 
-        /* 中央控制台 */
         #center-console {
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; width: 200px; padding: 15px;
@@ -147,7 +211,6 @@
         .btn.blue:hover { background-color: #03a9f4; }
         .btn.blue:active { box-shadow: 0 1px 0 #0288d1; }
 
-        /* 结算弹窗 */
         #result-modal {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; border: 5px solid var(--clay-brown); border-radius: 24px;
@@ -179,17 +242,14 @@
             #timer-container { margin-bottom: 0; width: 50px; height: 50px; font-size: 1.1rem; }
         }
     </style>
-    <!-- 引入 PeerJS，实现免服务器在线 P2P 联机 -->
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-    <!-- 1. 游戏主菜单 -->
     <div id="menu-container" class="clay-card">
         <h2 style="color: #6d4c41; margin: 0;">🍉 3D 粘土水果消消乐 🍓</h2>
         <p id="path-status" style="color: #e64a19; font-weight: bold; font-size: 13px; margin: 10px 0;">正在识别本地 tex/ 文件夹中的素材...</p>
 
-        <!-- 难度和时间配置 -->
         <div class="setting-group">
             <label>难度选择:</label>
             <select id="difficulty-select">
@@ -211,12 +271,10 @@
             </select>
         </div>
 
-        <!-- 模式选择按钮 -->
         <button class="btn" onclick="selectMode('single')">👤 单人闯关模式</button>
         <button class="btn" onclick="selectMode('local')">👥 本地同屏对战</button>
         <button class="btn blue" onclick="selectMode('online')">🌐 远程联机对战</button>
 
-        <!-- 联机面板 -->
         <div id="online-panel">
             <button class="btn blue" onclick="initOnline('host')">🏠 创建房间 (我是房主)</button>
             <div style="margin: 10px 0; font-size: 12px; color: #8c6a5c;">— 或者 —</div>
@@ -224,13 +282,11 @@
                 <input type="text" id="join-id-input" placeholder="输入对家房间 ID" style="flex: 1;">
                 <button class="btn blue" style="width: auto; margin:0;" onclick="initOnline('join')">加入</button>
             </div>
-            <p id="online-status" style="font-size: 12px; color: #ff7043; margin-top: 10px;"></p>
+            <p id="online-status" style="font-size: 12px; color: #ff7043; margin-top: 10px; line-height: 1.4;"></p>
         </div>
     </div>
 
-    <!-- 2. 游戏战场界面 -->
     <div id="game-layout">
-        <!-- P1 区域 (左侧) -->
         <div class="player-section clay-card" id="p1-section">
             <h3 id="p1-title" style="margin: 0 0 10px 0; color: #ff5252;">玩家 1 (红方)</h3>
             <div class="player-hud">
@@ -240,14 +296,12 @@
             <div class="board" id="p1-board"></div>
         </div>
 
-        <!-- 中央控制台 -->
         <div id="center-console" class="clay-card">
             <div id="timer-container"><span id="time-val">90</span></div>
             <button class="btn" onclick="backToMenu()">返回菜单</button>
             <button class="btn blue" id="sync-start-btn" style="display:none;" onclick="hostStartOnlineGame()">联机开战</button>
         </div>
 
-        <!-- P2 区域 (右侧) -->
         <div class="player-section clay-card" id="p2-section">
             <h3 id="p2-title" style="margin: 0 0 10px 0; color: #40c4ff;">玩家 2 (蓝方)</h3>
             <div class="player-hud">
@@ -258,7 +312,6 @@
         </div>
     </div>
 
-    <!-- 3. 结算弹窗 -->
     <div id="result-modal">
         <h2 id="result-title">游戏结束</h2>
         <p id="result-winner" style="font-size: 20px; color: #ff7043;"></p>
@@ -274,20 +327,29 @@
         let isGameRunning = false;
         let currentMode = 'single'; 
 
-        // 联机网络变量
         let peer = null;
         let conn = null;
         let myPeerId = '';
         let onlineRole = ''; 
 
-        // --- 智能同级路径自动探测引擎 ---
+        const peerConfig = {
+            host: '0.peerjs.com', port: 443, secure: true,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun.anyfirewall.com:3478' }
+                ]
+            }
+        };
+
         let useFallback = false;
         
         function detectTexFolder() {
             const testImg = new Image();
             testImg.onload = () => {
                 useFallback = false;
-                document.getElementById('path-status').innerHTML = `✅ 成功识别本地 <b style="color:#2e7d32;">tex/</b> 文件夹下的 16 种 3D 水果素材！`;
+                document.getElementById('path-status').innerHTML = `✅ 成功识别本地 <b style="color:#2e7d32;">tex/</b> 文件夹下的素材！`;
                 document.getElementById('path-status').style.color = '#2e7d32';
             };
             testImg.onerror = () => {
@@ -295,28 +357,26 @@
                 document.getElementById('path-status').innerHTML = `⚠️ 未检测到 tex/fruits_1.png，已启用备用彩色果冻。`;
                 document.getElementById('path-status').style.color = '#795548';
             };
-            // 尝试加载第一张水果图片作为连通性测试
             testImg.src = 'tex/fruits_1.png';
         }
 
-        // 启动探测
         detectTexFolder();
 
-        // P1 & P2 独立数据状态
         const players = {
             p1: {
                 id: 'p1', board: [], score: 0, combo: 0,
                 selectedTile: null, isAnimating: false,
-                boardEl: null, scoreEl: null, comboEl: null, comboBadgeEl: null
+                boardEl: null, scoreEl: null, comboEl: null, comboBadgeEl: null,
+                lastSwapAction: null // 记录上一次交换的坐标，用于精确生成4/5连特殊水果
             },
             p2: {
                 id: 'p2', board: [], score: 0, combo: 0,
                 selectedTile: null, isAnimating: false,
-                boardEl: null, scoreEl: null, comboEl: null, comboBadgeEl: null
+                boardEl: null, scoreEl: null, comboEl: null, comboBadgeEl: null,
+                lastSwapAction: null
             }
         };
 
-        // --- Web Audio API 音效合成 ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type, player = 'p1') {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -348,10 +408,16 @@
                 gain.gain.setValueAtTime(0.15, now);
                 gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
                 osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'explode') { // 🌟 5连大爆炸专属音效
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(1, now + 0.6);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now); osc.stop(now + 0.6);
             }
         }
 
-        // --- 游戏模式与联机配置 ---
         function selectMode(mode) {
             currentMode = mode;
             if (mode === 'online') {
@@ -362,47 +428,62 @@
             }
         }
 
-        // 初始化 PeerJS
         function initOnline(role) {
             onlineRole = role;
             const statusEl = document.getElementById('online-status');
-            statusEl.textContent = "正在连接 P2P 服务器...";
+            statusEl.innerHTML = "正在建立公网 P2P 信道...<br><span style='color:gray;font-size:11px;'>首次连接可能需要 3-5 秒，请稍候</span>";
 
-            const randomId = 'FRUIT-' + Math.floor(1000 + Math.random() * 9000);
-            
+            if (peer) {
+                try { peer.destroy(); } catch(e) {}
+            }
+
             if (role === 'host') {
-                peer = new Peer(randomId);
+                const randomId = 'FRUIT-' + Math.floor(1000 + Math.random() * 9000);
+                peer = new Peer(randomId, peerConfig);
+
                 peer.on('open', (id) => {
                     myPeerId = id;
-                    statusEl.innerHTML = `房间创建成功！<br>请把此 ID 告知朋友：<b style="font-size:16px;color:#d84315;">${id}</b><br>等待对方加入...`;
+                    statusEl.innerHTML = `房间创建成功！<br>请把此 ID 告知朋友：<b style="font-size:18px;color:#d84315;letter-spacing:1px;">${id}</b><br><span style='color:#4caf50;'>正在等待对手加入...</span>`;
                 });
 
                 peer.on('connection', (connection) => {
                     conn = connection;
-                    statusEl.textContent = "朋友已加入！可以开始对战了。";
+                    statusEl.innerHTML = "<b style='color:#2e7d32;'>对手已成功进入房间！</b><br>点击下方【联机开战】即可同步开局！";
                     document.getElementById('sync-start-btn').style.display = 'block'; 
                     setupDataChannel();
                 });
             } else {
-                peer = new Peer(); 
-                peer.on('open', () => {
-                    const targetId = document.getElementById('join-id-input').value.trim().toUpperCase();
-                    if (!targetId) {
-                        statusEl.textContent = "请输入房主的房间 ID！";
-                        return;
-                    }
-                    statusEl.textContent = `正在连接房间: ${targetId}...`;
-                    conn = peer.connect(targetId);
+                const targetId = document.getElementById('join-id-input').value.trim().toUpperCase();
+                if (!targetId) {
+                    statusEl.textContent = "⚠️ 请先输入房主的房间 ID！";
+                    return;
+                }
+
+                peer = new Peer(peerConfig);
+
+                peer.on('open', (myId) => {
+                    statusEl.innerHTML = `本地网络就绪，正在穿透防火墙呼叫房主: <b>${targetId}</b>...`;
+                    conn = peer.connect(targetId, { reliable: true });
 
                     conn.on('open', () => {
-                        statusEl.textContent = "成功连接房间！等待房主开始游戏...";
+                        statusEl.innerHTML = "<b style='color:#2e7d32;'>成功进入房间！</b><br>等待房主开启对局喵~";
                         setupDataChannel();
+                    });
+
+                    conn.on('error', (err) => {
+                        statusEl.innerHTML = "❌ 握手失败，请检查房间 ID 是否输入正确，或尝试重新连接。";
                     });
                 });
             }
 
             peer.on('error', (err) => {
-                statusEl.textContent = "连接发生错误: " + err.type;
+                if (err.type === 'unavailable-id') {
+                    statusEl.innerHTML = "⚠️ 房间 ID 被占用，请重新创建房间。";
+                } else if (err.type === 'peer-unavailable') {
+                    statusEl.innerHTML = "❌ 找不到对应的房间！请确认房主的 ID 拼写无误，且房主处于等待状态。";
+                } else {
+                    statusEl.innerHTML = `❌ 连接失败: ${err.type}，请尝试重试。`;
+                }
             });
         }
 
@@ -426,6 +507,17 @@
                     const mySelf = onlineRole === 'host' ? players.p1 : players.p2;
                     triggerLocalIce(mySelf);
                 }
+                else if (data.type === 'remote_explode') {
+                    // 🌟 联机模式接收对手引爆炸弹的喷溅粒子特效
+                    const opponent = onlineRole === 'host' ? players.p2 : players.p1;
+                    spawnJuiceParticles(opponent.boardEl, data.bombR, data.bombC, data.targets);
+                }
+            });
+
+            conn.on('close', () => {
+                isGameRunning = false;
+                alert("对家断开了连接，游戏结束。");
+                backToMenu();
             });
         }
 
@@ -443,7 +535,6 @@
             startCountdown();
         }
 
-        // --- 棋盘渲染与流转控制 ---
         function initGameUI() {
             document.getElementById('menu-container').style.display = 'none';
             document.getElementById('game-layout').style.display = 'flex';
@@ -509,7 +600,8 @@
                         validIndices.push(i);
                     }
                     const randIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
-                    player.board[r][c] = { val: randIndex, frozen: false };
+                    // 🌟 基础数据结构升级：支持 special ('row' | 'col' | 'bomb' | null)
+                    player.board[r][c] = { val: randIndex, frozen: false, isNew: false, special: null };
                 }
             }
             if (!hasAvailableMoves(player)) createBoard(player); 
@@ -528,8 +620,17 @@
                     tile.dataset.player = player.id;
 
                     if (cell) {
+                        if (cell.isNew) {
+                            tile.classList.add('spawn-bounce');
+                            cell.isNew = false; 
+                        }
+
+                        // 🌟 根据特殊水果类型挂载 CSS 样式
+                        if (cell.special === 'row') tile.classList.add('special-row');
+                        if (cell.special === 'col') tile.classList.add('special-col');
+                        if (cell.special === 'bomb') tile.classList.add('special-bomb');
+
                         if (!useFallback) {
-                            // 直接使用 <img> 渲染 tex/ 文件夹中的独立素材 (水果图片是 1-indexed)
                             const img = document.createElement('img');
                             img.src = `tex/fruits_${cell.val + 1}.png`;
                             tile.appendChild(img);
@@ -545,24 +646,94 @@
                         if (onlineRole === 'guest' && player.id !== 'p2') canClick = false;
                     }
 
-                    if (canClick) tile.addEventListener('click', handleTileClick);
+                    if (canClick) {
+                        tile.addEventListener('mousedown', handleDragStart);
+                        tile.addEventListener('touchstart', handleDragStart, { passive: true });
+                        tile.addEventListener('mouseup', handleDragEnd);
+                        tile.addEventListener('touchend', handleDragEnd);
+                    }
                     el.appendChild(tile);
                 }
             }
         }
 
-        async function handleTileClick(e) {
+        let dragStart = null;
+
+        function handleDragStart(e) {
             if (!isGameRunning) return;
-            
-            const clickedTile = e.currentTarget;
-            const player = players[clickedTile.dataset.player];
+            const tile = e.currentTarget;
+            const player = players[tile.dataset.player];
             if (player.isAnimating) return;
 
-            const r = parseInt(clickedTile.dataset.row);
-            const c = parseInt(clickedTile.dataset.col);
-
+            const r = parseInt(tile.dataset.row);
+            const c = parseInt(tile.dataset.col);
             if (player.board[r][c]?.frozen) return;
 
+            const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+
+            dragStart = {
+                player: player, tile: tile, r: r, c: c, x: clientX, y: clientY
+            };
+        }
+
+        async function handleDragEnd(e) {
+            if (!dragStart) return;
+            const player = dragStart.player;
+            if (player.isAnimating) { dragStart = null; return; }
+
+            const clientX = e.clientX || (e.changedTouches ? e.changedTouches[0].clientX : 0);
+            const clientY = e.clientY || (e.changedTouches ? e.changedTouches[0].clientY : 0);
+
+            const dx = clientX - dragStart.x;
+            const dy = clientY - dragStart.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 30) {
+                let targetR = dragStart.r;
+                let targetC = dragStart.c;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    targetC += (dx > 0) ? 1 : -1; 
+                } else {
+                    targetR += (dy > 0) ? 1 : -1; 
+                }
+
+                if (targetR >= 0 && targetR < BOARD_SIZE && targetC >= 0 && targetC < BOARD_SIZE) {
+                    if (!player.board[targetR][targetC]?.frozen) {
+                        player.isAnimating = true;
+                        
+                        // 记录主动交换目标，确保4/5连在玩家手势的目标点合成
+                        player.lastSwapAction = { r: targetR, c: targetC };
+
+                        await swapTiles(player, dragStart.r, dragStart.c, targetR, targetC);
+                        let matches = getMatches(player);
+                        if (matches.length > 0) {
+                            player.combo = 0;
+                            await processElimination(player);
+                        } else {
+                            await swapTiles(player, dragStart.r, dragStart.c, targetR, targetC); 
+                        }
+                        player.isAnimating = false;
+                    }
+                }
+                player.selectedTile = null;
+            } 
+            else {
+                // 🌟 核心优化：点击判定 - 如果点击的是发光炸弹，直接触发大轰炸！
+                const cell = player.board[dragStart.r][dragStart.c];
+                if (cell && cell.special === 'bomb') {
+                    player.isAnimating = true;
+                    await triggerBombExplosion(player, dragStart.r, dragStart.c);
+                    player.isAnimating = false;
+                } else {
+                    handleTileClick(dragStart.tile, player, dragStart.r, dragStart.c);
+                }
+            }
+            dragStart = null;
+        }
+
+        async function handleTileClick(clickedTile, player, r, c) {
             if (!player.selectedTile) {
                 player.selectedTile = clickedTile;
                 player.selectedTile.classList.add('selected');
@@ -577,6 +748,8 @@
                 if (isAdjacent) {
                     player.selectedTile.classList.remove('selected');
                     player.isAnimating = true;
+
+                    player.lastSwapAction = { r: r, c: c };
 
                     await swapTiles(player, prevR, prevC, r, c);
 
@@ -606,53 +779,105 @@
             await delay(120);
         }
 
+        // --- 🌟 核心算法升级：扫描匹配并精准定位合成特殊水果 ---
         function getMatches(player) {
             let matched = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(false));
-            let hasMatch = false;
+            let matchLines = []; // 存储所有检测到的连线
 
+            // 1. 横向扫描
             for (let r = 0; r < BOARD_SIZE; r++) {
-                let matchRun = 1;
+                let matchRun = [];
                 for (let c = 0; c < BOARD_SIZE; c++) {
-                    let isLast = (c === BOARD_SIZE - 1);
-                    if (!isLast && player.board[r][c]?.val === player.board[r][c+1]?.val && player.board[r][c] !== null) {
-                        matchRun++;
+                    const current = player.board[r][c];
+                    const next = player.board[r][c+1];
+                    if (current && next && current.val === next.val && !current.frozen && !next.frozen) {
+                        if (matchRun.length === 0) matchRun.push({ r, c });
+                        matchRun.push({ r, c: c+1 });
                     } else {
-                        if (matchRun >= 3) {
-                            for (let i = 0; i < matchRun; i++) { matched[r][c - i] = true; hasMatch = true; }
+                        if (matchRun.length >= 3) {
+                            matchLines.push({ dir: 'h', tiles: [...matchRun] });
+                            matchRun.forEach(t => matched[t.r][t.c] = true);
                         }
-                        matchRun = 1;
+                        matchRun = [];
                     }
                 }
             }
 
+            // 2. 纵向扫描
             for (let c = 0; c < BOARD_SIZE; c++) {
-                let matchRun = 1;
+                let matchRun = [];
                 for (let r = 0; r < BOARD_SIZE; r++) {
-                    let isLast = (r === BOARD_SIZE - 1);
-                    if (!isLast && player.board[r][c]?.val === player.board[r+1][c]?.val && player.board[r][c] !== null) {
-                        matchRun++;
+                    const current = player.board[r][c];
+                    const next = player.board[r+1]?.[c];
+                    if (current && next && current.val === next.val && !current.frozen && !next.frozen) {
+                        if (matchRun.length === 0) matchRun.push({ r, c });
+                        matchRun.push({ r: r+1, c });
                     } else {
-                        if (matchRun >= 3) {
-                            for (let i = 0; i < matchRun; i++) { matched[r - i][c] = true; hasMatch = true; }
+                        if (matchRun.length >= 3) {
+                            matchLines.push({ dir: 'v', tiles: [...matchRun] });
+                            matchRun.forEach(t => matched[t.r][t.c] = true);
                         }
-                        matchRun = 1;
+                        matchRun = [];
                     }
                 }
             }
+
+            // 3. 🌟 4连/5连特殊方块合成决策
+            matchLines.forEach(line => {
+                const len = line.tiles.length;
+                if (len < 4) return;
+
+                // 决定合成特殊水果的位置：优先选择手势交换的目标点，否则选择连线中点
+                let spawnPos = line.tiles[Math.floor(len / 2)];
+                if (player.lastSwapAction) {
+                    const found = line.tiles.find(t => t.r === player.lastSwapAction.r && t.c === player.lastSwapAction.c);
+                    if (found) spawnPos = found;
+                }
+
+                const cell = player.board[spawnPos.r][spawnPos.c];
+                if (cell) {
+                    if (len === 4) {
+                        cell.special = (line.dir === 'h') ? 'row' : 'col'; // 横向4连生横消，纵向4连生竖消
+                        cell.isNew = true;
+                        matched[spawnPos.r][spawnPos.c] = false; // 🌟 关键：该合成点不参与本次消除！
+                    } else if (len >= 5) {
+                        cell.special = 'bomb'; // 5连生发光炸弹
+                        cell.isNew = true;
+                        matched[spawnPos.r][spawnPos.c] = false;
+                    }
+                }
+            });
+
+            // 4. L型 / T型 交叉5连特殊合成判定
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    // 如果一个点同时参与了横向和纵向消除，这就是交叉5连，合成炸弹！
+                    const isCross = matchLines.filter(line => line.tiles.some(t => t.r === r && t.c === c));
+                    if (isCross.length >= 2) {
+                        const cell = player.board[r][c];
+                        if (cell) {
+                            cell.special = 'bomb';
+                            cell.isNew = true;
+                            matched[r][c] = false; // 合成点不消除
+                        }
+                    }
+                }
+            }
+
+            player.lastSwapAction = null; // 消费后重置
 
             let coords = [];
-            if (hasMatch) {
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    for (let c = 0; c < BOARD_SIZE; c++) {
-                        if (matched[r][c]) coords.push({ r, c });
-                    }
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (matched[r][c]) coords.push({ r, c });
                 }
             }
             return coords;
         }
 
+        // --- 🌟 核心算法升级：递归连锁消除与特殊水果触发 ---
         async function processElimination(player) {
-            const matches = getMatches(player);
+            let matches = getMatches(player);
             if (matches.length === 0) {
                 player.combo = 0;
                 player.comboBadgeEl.classList.remove('active');
@@ -675,19 +900,62 @@
                 }
             }
 
+            // 🌟 特殊水果连锁反应队列：利用 Set 避免无限循环
+            let elimQueue = new Set(matches.map(m => `${m.r},${m.c}`));
+            let processed = new Set();
+            let hasNewTrigger = true;
+
+            while (hasNewTrigger) {
+                hasNewTrigger = false;
+                let currentQueue = Array.from(elimQueue);
+
+                for (let key of currentQueue) {
+                    if (processed.has(key)) continue;
+                    processed.add(key);
+
+                    const [r, c] = key.split(',').map(Number);
+                    const cell = player.board[r][c];
+
+                    if (cell && cell.special) {
+                        hasNewTrigger = true;
+
+                        if (cell.special === 'row') {
+                            // 横消：引爆整行
+                            for (let col = 0; col < BOARD_SIZE; col++) {
+                                elimQueue.add(`${r},${col}`);
+                            }
+                        } else if (cell.special === 'col') {
+                            // 竖消：引爆整列
+                            for (let row = 0; row < BOARD_SIZE; row++) {
+                                elimQueue.add(`${row},${c}`);
+                            }
+                        } else if (cell.special === 'bomb') {
+                            // 炸弹：在消除链中被动触发时，同样引爆全屏
+                            await triggerBombExplosion(player, r, c);
+                        }
+                    }
+                }
+            }
+
+            // 转换为最终消除列表
+            let finalElimList = Array.from(elimQueue).map(key => {
+                const [r, c] = key.split(',').map(Number);
+                return { r, c };
+            });
+
             playSound('pop', player.id);
-            matches.forEach(coord => {
+            finalElimList.forEach(coord => {
                 const el = player.boardEl.querySelector(`[data-row='${coord.r}'][data-col='${coord.c}']`);
                 if (el) el.classList.add('eliminating');
                 thawAdjacent(player, coord.r, coord.c);
             });
 
-            player.score += matches.length * 10 * player.combo;
+            player.score += finalElimList.length * 10 * player.combo;
             player.scoreEl.textContent = player.score;
 
             await delay(200);
 
-            matches.forEach(coord => { player.board[coord.r][coord.c] = null; });
+            finalElimList.forEach(coord => { player.board[coord.r][coord.c] = null; });
 
             applyGravity(player);
             renderBoard(player);
@@ -707,6 +975,120 @@
 
             await processElimination(player);
         }
+
+        // --- 🌟 核心算法升级：超级发光炸弹 30%~50% 随机全屏喷溅消除 ---
+        async function triggerBombExplosion(player, bombR, bombC) {
+            playSound('explode', player.id);
+            
+            // 1. 随机计算喷溅比例 (30% - 50%)
+            const pct = 0.3 + Math.random() * 0.2; 
+            const totalTiles = BOARD_SIZE * BOARD_SIZE;
+            const splashCount = Math.floor(totalTiles * pct);
+
+            // 2. 收集所有可被喷溅的坐标
+            const candidates = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (r === bombR && c === bombC) continue;
+                    candidates.push({ r, c });
+                }
+            }
+
+            // 3. 随机抽取指定数量的目标
+            const targets = [];
+            for (let i = 0; i < splashCount && candidates.length > 0; i++) {
+                const idx = Math.floor(Math.random() * candidates.length);
+                targets.push(candidates.splice(idx, 1)[0]);
+            }
+
+            // 4. 在屏幕上渲染彩色果汁粒子喷溅效果
+            spawnJuiceParticles(player.boardEl, bombR, bombC, targets);
+
+            // 5. 联机模式：实时把喷溅特效同步到对手的屏幕上！
+            if (currentMode === 'online') {
+                conn.send({
+                    type: 'remote_explode',
+                    bombR: bombR,
+                    bombC: bombC,
+                    targets: targets
+                });
+            }
+
+            // 6. 标记炸弹本身和所有喷溅目标为消除
+            player.board[bombR][bombC] = null;
+            targets.forEach(t => {
+                const cell = player.board[t.r][t.c];
+                if (cell) {
+                    // 如果喷溅到了其他特殊水果，会瞬间引发连锁反应
+                    if (cell.special === 'row' || cell.special === 'col') {
+                        // 标记让连锁反应处理器去结算
+                    }
+                    player.board[t.r][t.c] = null;
+                }
+            });
+
+            player.score += (targets.length + 1) * 15;
+            player.scoreEl.textContent = player.score;
+
+            await delay(450); // 等待粒子飞完
+
+            applyGravity(player);
+            renderBoard(player);
+            await delay(150);
+
+            fillEmptySpaces(player);
+            renderBoard(player);
+            await delay(150);
+
+            if (currentMode === 'online') {
+                conn.send({
+                    type: 'sync',
+                    board: player.board,
+                    score: player.score
+                });
+            }
+        }
+
+        // 🌟 粒子喷溅渲染引擎 (CSS 动画驱动，不污染 Canvas)
+        function spawnJuiceParticles(boardEl, startR, startC, targets) {
+            const colors = ['#ff5252', '#ff4081', '#00e5ff', '#00e676', '#ffd600', '#ff9100'];
+            
+            targets.forEach(target => {
+                const particle = document.createElement('div');
+                particle.className = 'juice-particle';
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+                // 计算起点位置 (绝对定位在炸弹方块中心)
+                const startX = startC * (52 + 6) + 26; 
+                const startY = startR * (52 + 6) + 26;
+                particle.style.left = `${startX}px`;
+                particle.style.top = `${startY}px`;
+
+                boardEl.appendChild(particle);
+
+                // 强制重绘，触发过渡动画
+                window.getComputedStyle(particle).transform;
+
+                // 飞向目标方块
+                const targetX = target.c * (52 + 6) + 26;
+                const targetY = target.r * (52 + 6) + 26;
+                particle.style.left = `${targetX}px`;
+                particle.style.top = `${targetY}px`;
+                particle.style.transform = 'scale(0.3)';
+                particle.style.opacity = '0';
+
+                // 动画结束后销毁
+                setTimeout(() => {
+                    particle.remove();
+                    // 目标方块闪烁震动消除
+                    const targetEl = boardEl.querySelector(`[data-row='${target.r}'][data-col='${target.c}']`);
+                    if (targetEl) {
+                        targetEl.classList.add('eliminating');
+                    }
+                }, 450);
+            });
+        }
+
 
         function applyGravity(player) {
             for (let c = 0; c < BOARD_SIZE; c++) {
@@ -729,14 +1111,15 @@
                     if (player.board[r][c] === null) {
                         player.board[r][c] = {
                             val: Math.floor(Math.random() * activeFruitCount),
-                            frozen: false
+                            frozen: false,
+                            isNew: true, // 🌟 标记新生成，触发Q弹动画
+                            special: null
                         };
                     }
                 }
             }
         }
 
-        // --- 4. 冰冻攻击 ---
         function triggerLocalIce(targetPlayer) {
             const candidates = [];
             for (let r = 0; r < BOARD_SIZE; r++) {
@@ -774,7 +1157,6 @@
             });
         }
 
-        // --- 5. 死锁检测 ---
         function hasAvailableMoves(player) {
             const tempBoard = Array.from({ length: BOARD_SIZE }, (_, r) => 
                 player.board[r].map(cell => cell ? cell.val : -1)
@@ -830,7 +1212,6 @@
             }
         }
 
-        // --- 6. 计时器与结算 ---
         function startCountdown() {
             clearInterval(gameTimer);
             gameTimer = setInterval(() => {
