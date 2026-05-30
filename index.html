@@ -89,7 +89,7 @@
             transition: transform 0.2s;
         }
 
-        /* 🌟 Q弹出现动画 */
+        /* Q弹出现动画 */
         @keyframes bounceSpawn {
             0% { transform: scale(0); opacity: 0; }
             60% { transform: scale(1.18); opacity: 0.8; }
@@ -100,7 +100,7 @@
             animation: bounceSpawn 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.2) both;
         }
 
-        /* 🌟 4连：横向清除特殊水果 (粉色横向极光) */
+        /* 4连：横向清除特殊水果 (粉色横向极光) */
         .tile.special-row {
             transform: scale(1.1);
             box-shadow: 0 0 12px #ff4081, 0 4px 0 #d9c1b3;
@@ -113,7 +113,7 @@
             animation: pulseLaser 0.8s infinite alternate;
         }
 
-        /* 🌟 4连：纵向清除特殊水果 (蓝色纵向极光) */
+        /* 4连：纵向清除特殊水果 (蓝色纵向极光) */
         .tile.special-col {
             transform: scale(1.1);
             box-shadow: 0 0 12px #00e5ff, 0 4px 0 #d9c1b3;
@@ -131,7 +131,7 @@
             100% { opacity: 1; transform: scaleY(1.2) translate(-50%, -50%); }
         }
 
-        /* 🌟 5连：超级发光能量炸弹 (七彩霓虹旋转光圈) */
+        /* 5连：超级发光能量炸弹 (七彩霓虹旋转光圈) */
         .tile.special-bomb {
             transform: scale(1.2);
             z-index: 5;
@@ -153,7 +153,7 @@
             100% { transform: rotate(360deg); filter: hue-rotate(360deg); }
         }
 
-        /* 🌟 炸弹喷溅果汁粒子 */
+        /* 炸弹喷溅果汁粒子 */
         .juice-particle {
             position: absolute; width: 14px; height: 14px;
             border-radius: 50%; z-index: 100; pointer-events: none;
@@ -246,6 +246,7 @@
 </head>
 <body>
 
+    <!-- 1. 游戏主菜单 -->
     <div id="menu-container" class="clay-card">
         <h2 style="color: #6d4c41; margin: 0;">🍉 3D 粘土水果消消乐 🍓</h2>
         <p id="path-status" style="color: #e64a19; font-weight: bold; font-size: 13px; margin: 10px 0;">正在识别本地 tex/ 文件夹中的素材...</p>
@@ -275,6 +276,7 @@
         <button class="btn" onclick="selectMode('local')">👥 本地同屏对战</button>
         <button class="btn blue" onclick="selectMode('online')">🌐 远程联机对战</button>
 
+        <!-- 联机面板 -->
         <div id="online-panel">
             <button class="btn blue" onclick="initOnline('host')">🏠 创建房间 (我是房主)</button>
             <div style="margin: 10px 0; font-size: 12px; color: #8c6a5c;">— 或者 —</div>
@@ -283,10 +285,15 @@
                 <button class="btn blue" style="width: auto; margin:0;" onclick="initOnline('join')">加入</button>
             </div>
             <p id="online-status" style="font-size: 12px; color: #ff7043; margin-top: 10px; line-height: 1.4;"></p>
+            
+            <!-- 🌟 【修复位置】联机开战按钮已正确移入菜单联机面板，确保在点击创建房间后可见 -->
+            <button class="btn blue" id="sync-start-btn" style="display:none; margin-top: 12px;" onclick="hostStartOnlineGame()">⚔️ 联机开战 ⚔️</button>
         </div>
     </div>
 
+    <!-- 2. 游戏战场界面 -->
     <div id="game-layout">
+        <!-- P1 区域 (左侧) -->
         <div class="player-section clay-card" id="p1-section">
             <h3 id="p1-title" style="margin: 0 0 10px 0; color: #ff5252;">玩家 1 (红方)</h3>
             <div class="player-hud">
@@ -296,12 +303,13 @@
             <div class="board" id="p1-board"></div>
         </div>
 
+        <!-- 中央控制台 -->
         <div id="center-console" class="clay-card">
             <div id="timer-container"><span id="time-val">90</span></div>
             <button class="btn" onclick="backToMenu()">返回菜单</button>
-            <button class="btn blue" id="sync-start-btn" style="display:none;" onclick="hostStartOnlineGame()">联机开战</button>
         </div>
 
+        <!-- P2 区域 (右侧) -->
         <div class="player-section clay-card" id="p2-section">
             <h3 id="p2-title" style="margin: 0 0 10px 0; color: #40c4ff;">玩家 2 (蓝方)</h3>
             <div class="player-hud">
@@ -312,6 +320,7 @@
         </div>
     </div>
 
+    <!-- 3. 结算弹窗 -->
     <div id="result-modal">
         <h2 id="result-title">游戏结束</h2>
         <p id="result-winner" style="font-size: 20px; color: #ff7043;"></p>
@@ -367,7 +376,7 @@
                 id: 'p1', board: [], score: 0, combo: 0,
                 selectedTile: null, isAnimating: false,
                 boardEl: null, scoreEl: null, comboEl: null, comboBadgeEl: null,
-                lastSwapAction: null // 记录上一次交换的坐标，用于精确生成4/5连特殊水果
+                lastSwapAction: null 
             },
             p2: {
                 id: 'p2', board: [], score: 0, combo: 0,
@@ -408,7 +417,7 @@
                 gain.gain.setValueAtTime(0.15, now);
                 gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
                 osc.start(now); osc.stop(now + 0.3);
-            } else if (type === 'explode') { // 🌟 5连大爆炸专属音效
+            } else if (type === 'explode') { 
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(120, now);
                 osc.frequency.exponentialRampToValueAtTime(1, now + 0.6);
@@ -449,7 +458,7 @@
                 peer.on('connection', (connection) => {
                     conn = connection;
                     statusEl.innerHTML = "<b style='color:#2e7d32;'>对手已成功进入房间！</b><br>点击下方【联机开战】即可同步开局！";
-                    document.getElementById('sync-start-btn').style.display = 'block'; 
+                    document.getElementById('sync-start-btn').style.display = 'block'; // 🌟 激活按钮显示
                     setupDataChannel();
                 });
             } else {
@@ -508,7 +517,6 @@
                     triggerLocalIce(mySelf);
                 }
                 else if (data.type === 'remote_explode') {
-                    // 🌟 联机模式接收对手引爆炸弹的喷溅粒子特效
                     const opponent = onlineRole === 'host' ? players.p2 : players.p1;
                     spawnJuiceParticles(opponent.boardEl, data.bombR, data.bombC, data.targets);
                 }
@@ -600,7 +608,6 @@
                         validIndices.push(i);
                     }
                     const randIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
-                    // 🌟 基础数据结构升级：支持 special ('row' | 'col' | 'bomb' | null)
                     player.board[r][c] = { val: randIndex, frozen: false, isNew: false, special: null };
                 }
             }
@@ -625,7 +632,6 @@
                             cell.isNew = false; 
                         }
 
-                        // 🌟 根据特殊水果类型挂载 CSS 样式
                         if (cell.special === 'row') tile.classList.add('special-row');
                         if (cell.special === 'col') tile.classList.add('special-col');
                         if (cell.special === 'bomb') tile.classList.add('special-bomb');
@@ -703,7 +709,6 @@
                     if (!player.board[targetR][targetC]?.frozen) {
                         player.isAnimating = true;
                         
-                        // 记录主动交换目标，确保4/5连在玩家手势的目标点合成
                         player.lastSwapAction = { r: targetR, c: targetC };
 
                         await swapTiles(player, dragStart.r, dragStart.c, targetR, targetC);
@@ -720,7 +725,6 @@
                 player.selectedTile = null;
             } 
             else {
-                // 🌟 核心优化：点击判定 - 如果点击的是发光炸弹，直接触发大轰炸！
                 const cell = player.board[dragStart.r][dragStart.c];
                 if (cell && cell.special === 'bomb') {
                     player.isAnimating = true;
@@ -779,12 +783,10 @@
             await delay(120);
         }
 
-        // --- 🌟 核心算法升级：扫描匹配并精准定位合成特殊水果 ---
         function getMatches(player) {
             let matched = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(false));
-            let matchLines = []; // 存储所有检测到的连线
+            let matchLines = []; 
 
-            // 1. 横向扫描
             for (let r = 0; r < BOARD_SIZE; r++) {
                 let matchRun = [];
                 for (let c = 0; c < BOARD_SIZE; c++) {
@@ -803,7 +805,6 @@
                 }
             }
 
-            // 2. 纵向扫描
             for (let c = 0; c < BOARD_SIZE; c++) {
                 let matchRun = [];
                 for (let r = 0; r < BOARD_SIZE; r++) {
@@ -822,12 +823,10 @@
                 }
             }
 
-            // 3. 🌟 4连/5连特殊方块合成决策
             matchLines.forEach(line => {
                 const len = line.tiles.length;
                 if (len < 4) return;
 
-                // 决定合成特殊水果的位置：优先选择手势交换的目标点，否则选择连线中点
                 let spawnPos = line.tiles[Math.floor(len / 2)];
                 if (player.lastSwapAction) {
                     const found = line.tiles.find(t => t.r === player.lastSwapAction.r && t.c === player.lastSwapAction.c);
@@ -837,34 +836,32 @@
                 const cell = player.board[spawnPos.r][spawnPos.c];
                 if (cell) {
                     if (len === 4) {
-                        cell.special = (line.dir === 'h') ? 'row' : 'col'; // 横向4连生横消，纵向4连生竖消
+                        cell.special = (line.dir === 'h') ? 'row' : 'col'; 
                         cell.isNew = true;
-                        matched[spawnPos.r][spawnPos.c] = false; // 🌟 关键：该合成点不参与本次消除！
+                        matched[spawnPos.r][spawnPos.c] = false; 
                     } else if (len >= 5) {
-                        cell.special = 'bomb'; // 5连生发光炸弹
+                        cell.special = 'bomb'; 
                         cell.isNew = true;
                         matched[spawnPos.r][spawnPos.c] = false;
                     }
                 }
             });
 
-            // 4. L型 / T型 交叉5连特殊合成判定
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
-                    // 如果一个点同时参与了横向和纵向消除，这就是交叉5连，合成炸弹！
                     const isCross = matchLines.filter(line => line.tiles.some(t => t.r === r && t.c === c));
                     if (isCross.length >= 2) {
                         const cell = player.board[r][c];
                         if (cell) {
                             cell.special = 'bomb';
                             cell.isNew = true;
-                            matched[r][c] = false; // 合成点不消除
+                            matched[r][c] = false; 
                         }
                     }
                 }
             }
 
-            player.lastSwapAction = null; // 消费后重置
+            player.lastSwapAction = null; 
 
             let coords = [];
             for (let r = 0; r < BOARD_SIZE; r++) {
@@ -875,7 +872,6 @@
             return coords;
         }
 
-        // --- 🌟 核心算法升级：递归连锁消除与特殊水果触发 ---
         async function processElimination(player) {
             let matches = getMatches(player);
             if (matches.length === 0) {
@@ -900,7 +896,6 @@
                 }
             }
 
-            // 🌟 特殊水果连锁反应队列：利用 Set 避免无限循环
             let elimQueue = new Set(matches.map(m => `${m.r},${m.c}`));
             let processed = new Set();
             let hasNewTrigger = true;
@@ -920,24 +915,20 @@
                         hasNewTrigger = true;
 
                         if (cell.special === 'row') {
-                            // 横消：引爆整行
                             for (let col = 0; col < BOARD_SIZE; col++) {
                                 elimQueue.add(`${r},${col}`);
                             }
                         } else if (cell.special === 'col') {
-                            // 竖消：引爆整列
                             for (let row = 0; row < BOARD_SIZE; row++) {
                                 elimQueue.add(`${row},${c}`);
                             }
                         } else if (cell.special === 'bomb') {
-                            // 炸弹：在消除链中被动触发时，同样引爆全屏
                             await triggerBombExplosion(player, r, c);
                         }
                     }
                 }
             }
 
-            // 转换为最终消除列表
             let finalElimList = Array.from(elimQueue).map(key => {
                 const [r, c] = key.split(',').map(Number);
                 return { r, c };
@@ -976,16 +967,13 @@
             await processElimination(player);
         }
 
-        // --- 🌟 核心算法升级：超级发光炸弹 30%~50% 随机全屏喷溅消除 ---
         async function triggerBombExplosion(player, bombR, bombC) {
             playSound('explode', player.id);
             
-            // 1. 随机计算喷溅比例 (30% - 50%)
             const pct = 0.3 + Math.random() * 0.2; 
             const totalTiles = BOARD_SIZE * BOARD_SIZE;
             const splashCount = Math.floor(totalTiles * pct);
 
-            // 2. 收集所有可被喷溅的坐标
             const candidates = [];
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
@@ -994,17 +982,14 @@
                 }
             }
 
-            // 3. 随机抽取指定数量的目标
             const targets = [];
             for (let i = 0; i < splashCount && candidates.length > 0; i++) {
                 const idx = Math.floor(Math.random() * candidates.length);
                 targets.push(candidates.splice(idx, 1)[0]);
             }
 
-            // 4. 在屏幕上渲染彩色果汁粒子喷溅效果
             spawnJuiceParticles(player.boardEl, bombR, bombC, targets);
 
-            // 5. 联机模式：实时把喷溅特效同步到对手的屏幕上！
             if (currentMode === 'online') {
                 conn.send({
                     type: 'remote_explode',
@@ -1014,15 +999,10 @@
                 });
             }
 
-            // 6. 标记炸弹本身和所有喷溅目标为消除
             player.board[bombR][bombC] = null;
             targets.forEach(t => {
                 const cell = player.board[t.r][t.c];
                 if (cell) {
-                    // 如果喷溅到了其他特殊水果，会瞬间引发连锁反应
-                    if (cell.special === 'row' || cell.special === 'col') {
-                        // 标记让连锁反应处理器去结算
-                    }
                     player.board[t.r][t.c] = null;
                 }
             });
@@ -1030,7 +1010,7 @@
             player.score += (targets.length + 1) * 15;
             player.scoreEl.textContent = player.score;
 
-            await delay(450); // 等待粒子飞完
+            await delay(450); 
 
             applyGravity(player);
             renderBoard(player);
@@ -1049,7 +1029,6 @@
             }
         }
 
-        // 🌟 粒子喷溅渲染引擎 (CSS 动画驱动，不污染 Canvas)
         function spawnJuiceParticles(boardEl, startR, startC, targets) {
             const colors = ['#ff5252', '#ff4081', '#00e5ff', '#00e676', '#ffd600', '#ff9100'];
             
@@ -1058,7 +1037,6 @@
                 particle.className = 'juice-particle';
                 particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
 
-                // 计算起点位置 (绝对定位在炸弹方块中心)
                 const startX = startC * (52 + 6) + 26; 
                 const startY = startR * (52 + 6) + 26;
                 particle.style.left = `${startX}px`;
@@ -1066,10 +1044,8 @@
 
                 boardEl.appendChild(particle);
 
-                // 强制重绘，触发过渡动画
                 window.getComputedStyle(particle).transform;
 
-                // 飞向目标方块
                 const targetX = target.c * (52 + 6) + 26;
                 const targetY = target.r * (52 + 6) + 26;
                 particle.style.left = `${targetX}px`;
@@ -1077,10 +1053,8 @@
                 particle.style.transform = 'scale(0.3)';
                 particle.style.opacity = '0';
 
-                // 动画结束后销毁
                 setTimeout(() => {
                     particle.remove();
-                    // 目标方块闪烁震动消除
                     const targetEl = boardEl.querySelector(`[data-row='${target.r}'][data-col='${target.c}']`);
                     if (targetEl) {
                         targetEl.classList.add('eliminating');
@@ -1088,7 +1062,6 @@
                 }, 450);
             });
         }
-
 
         function applyGravity(player) {
             for (let c = 0; c < BOARD_SIZE; c++) {
@@ -1112,7 +1085,7 @@
                         player.board[r][c] = {
                             val: Math.floor(Math.random() * activeFruitCount),
                             frozen: false,
-                            isNew: true, // 🌟 标记新生成，触发Q弹动画
+                            isNew: true, 
                             special: null
                         };
                     }
@@ -1277,6 +1250,7 @@
             document.getElementById('game-layout').style.display = 'none';
             document.getElementById('result-modal').style.display = 'none';
             document.getElementById('menu-container').style.display = 'flex';
+            document.getElementById('sync-start-btn').style.display = 'none'; // 返回菜单重置按钮
         }
 
         function delay(ms) {
